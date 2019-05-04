@@ -1,56 +1,38 @@
 # -*- coding: utf-8-*- 
 
-from flask import Flask
-from flask import render_template
-from flask import request, url_for, redirect, flash
+import os
+from flask import Flask, render_template, send_from_directory, request, jsonify
+import time
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev'
-
-@app.context_processor
-def inject_user():
-    #user = User.query.first()
-    return dict(user=user)
-
-
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template('404.html'), 404
-
-
-@app.route('/',methods=['GET', 'POST'])
-def index():
-    #movies = Movie.query.all()
-    if request.method == 'POST':  # 判断是否是 POST 请求
-        # 获取表单数据
-        title = request.form.get('title')  # 传入表单对应输入字段的 name 值
-        year = request.form.get('year')
-        flash('dealing your data, plz wait')
-        year = float(year)
-        while year>0:
-        	year = year-0.001
-        # 验证数据
-        # if not title or not year or len(year) > 4 or len(title) > 60:
-        #     flash('Invalid input.')  # 显示错误提示
-        #     return redirect(url_for('index'))  # 重定向回主页
-        # # 保存表单数据到数据库
-        # flash(year)  # 显示成功创建的提示
-        # flash(title)
-        flash('finish')
-        return redirect('yourtest')  # 重定向回主页
-
-    return render_template('index.html', movies=movies, name=user)
-
-user = 'keyb'
-movies = [
-    {'title': 'My Neighbor Totoro', 'year': '1988'},
-    {'title': 'Dead Poets Society', 'year': '1989'},
-    {'title': 'A Perfect World', 'year': '1993'},
-    {'title': 'Leon', 'year': '1994'},
-    {'title': 'Mahjong', 'year': '1996'},
-    {'title': 'Swallowtail Butterfly', 'year': '1996'},
-    {'title': 'King of Comedy', 'year': '1999'},
-    {'title': 'Devils on the Doorstep', 'year': '1999'},
-    {'title': 'WALL-E', 'year': '2008'},
-    {'title': 'The Pork of Music', 'year': '2012'},
-]
+ 
+UPLOAD_FOLDER = 'upload'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER  # 设置文件上传的目标文件夹
+basedir = os.path.abspath(os.path.dirname(__file__))  # 获取当前项目的绝对路径
+ALLOWED_EXTENSIONS = set(['txt', 'png', 'jpg', 'xls', 'JPG', 'PNG', 'xlsx', 'gif', 'GIF'])  # 允许上传的文件后缀
+ 
+# 判断文件是否合法
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
+ 
+# 具有上传功能的页面
+@app.route('/test/upload')
+def upload_test():
+    return render_template('upload.html')
+ 
+@app.route('/api/upload', methods=['POST'], strict_slashes=False)
+def api_upload():
+    file_dir = os.path.join(basedir, app.config['UPLOAD_FOLDER'])  # 拼接成合法文件夹地址
+    if not os.path.exists(file_dir):
+        os.makedirs(file_dir)  # 文件夹不存在就创建
+    f=request.files['myfile']  # 从表单的file字段获取文件，myfile为该表单的name值
+    if f and allowed_file(f.filename):  # 判断是否是允许上传的文件类型
+        fname=f.filename
+        ext = fname.rsplit('.', 1)[1]  # 获取文件后缀
+        unix_time = int(time.time())
+        new_filename = str(unix_time)+'.'+ext   # 修改文件名
+        f.save(os.path.join(file_dir, new_filename))  #保存文件到upload目录
+ 
+        return jsonify({"errno": 0, "errmsg": "上传成功"})
+    else:
+        return jsonify({"errno": 1001, "errmsg": "上传失败"})
